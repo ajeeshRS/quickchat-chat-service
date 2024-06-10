@@ -4,8 +4,6 @@ import dotenv from "dotenv";
 import { connectDb } from "./config/connection";
 import { Server } from "socket.io";
 import routes from "./routes/chatRoutes";
-import axios from "axios";
-import { UserConnection } from "./models/userConnectionSchema";
 import { socketAuthMiddleware } from "./middlewares/authMiddleware";
 import { handleSocketConnection } from "./controllers/socketController";
 
@@ -24,7 +22,7 @@ const httpServer = app.listen(PORT, () => {
 
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:80",
+    origin: "http://localhost:5173",
   },
 });
 
