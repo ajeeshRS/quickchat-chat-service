@@ -1,5 +1,6 @@
 import { Socket } from "socket.io";
 import { UserConnection } from "../models/userConnectionSchema";
+import { userServiceApi } from "../config/axiosConfig";
 
 export const handleSocketConnection = async (socket: Socket) => {
     console.log(`user connected with id ${socket.id}`)
@@ -47,5 +48,19 @@ export const handleSocketConnection = async (socket: Socket) => {
         socket.emit('user-connection', result)
     } catch (err) {
         console.error(err)
+    }
+}
+
+export const handleStatusUpdation = async (socket: Socket, status: string) => {
+    try {
+        const { email } = socket.data.userData;
+        const data = {
+            email: email,
+            status: status
+        }
+        const res = await userServiceApi.put('/update-status', data)
+        console.log(res.data)
+    } catch (err) {
+        console.error('some error occured during update: ', err)
     }
 }
