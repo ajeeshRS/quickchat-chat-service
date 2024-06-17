@@ -4,8 +4,11 @@ import { userServiceApi } from "../config/axiosConfig";
 
 export const handleSocketConnection = async (socket: Socket) => {
     console.log(`user connected with id ${socket.id}`)
+    // getting user email from the socket object
     const { email } = socket.data.userData;
+
     try {
+        // creates new connection if not exists else updates it
         await UserConnection.findOneAndUpdate(
             { email: email },
             { socketId: socket.id },
@@ -13,6 +16,8 @@ export const handleSocketConnection = async (socket: Socket) => {
         );
 
         console.log("User connection created ")
+
+        // aggregation pipeline for getting client details on connection 
         const result = await UserConnection.aggregate([
             {
                 $match: { email: email }
@@ -45,9 +50,11 @@ export const handleSocketConnection = async (socket: Socket) => {
                 }
             }
         ]);
+
+        // emits event for client
         socket.emit('user-connection', result)
     } catch (err) {
-        console.error(err)
+        console.error('Err: ', err)
     }
 }
 
@@ -58,6 +65,7 @@ export const handleStatusUpdation = async (socket: Socket, status: string) => {
             email: email,
             status: status
         }
+        // sending request to userService for updating user status(online/offline)
         const res = await userServiceApi.put('/update-status', data)
         console.log(res.data)
     } catch (err) {

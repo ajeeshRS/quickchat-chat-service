@@ -23,13 +23,16 @@ app.use("/api/v1/chat", routes)
 const startServer = async () => {
 
   try {
+    //  starting http server
     const httpServer: any = app.listen(PORT, async () => {
       connectDb()
       console.log(`Connected to chat service on port : ${PORT}`)
     })
 
+    // redis clients
     const { pubClient, subClient } = await createRedisClients()
 
+    // init socket io server
     const io = new Server(httpServer, {
       cors: {
         origin: "http://localhost:5173",
@@ -39,35 +42,45 @@ const startServer = async () => {
     // redis adapter for socket io
     io.adapter(createAdapter(pubClient, subClient))
 
+    // socket io middleware
     io.use((socket, next) => {
       console.log('middleware invoked')
       socketAuthMiddleware(socket, next)
     })
 
-
+    // on socket connection
     io.on("connection", (socket) => {
+
+      // handling socket connection
       handleSocketConnection(socket)
 
+      // when user on online
       socket.on("userOnline", (status) => {
         handleStatusUpdation(socket, status)
       })
 
+      // on user disconnection
       socket.on("disconnect", () => {
         handleStatusUpdation(socket, 'offline')
       })
 
-      socket.on("send-message", ({ message, socketId }) => {
-        socket.to(socketId).emit('receive-message', message)
+      // on user sends a message
+      socket.on("send-message", ({ message, socketId, email }) => {
+        const data = {
+          message: message,
+          recipient: email,
+          sender: socket.data.userData.email //getting userdata from the socket object
+        }
+        console.log(message, socketId)
+
+        // sending message to recipient
+        socket.to(socketId).emit('receive-message', data)
       })
-
     })
-
-
   } catch (err) {
-    console.error("Couldn't start the server")
+    console.error("Couldn't start the server: ", err)
   }
 }
-
 
 startServer()
 

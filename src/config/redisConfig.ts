@@ -1,7 +1,5 @@
 import { createClient } from "redis";
 
-
-
 export const createRedisClients = async () => {
 
     const pubClient = createClient()
