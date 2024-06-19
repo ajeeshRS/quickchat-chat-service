@@ -22,5 +22,6 @@ export const socketAuthMiddleware = async (socket: Socket<Server>, next: (err?: 
         next()
     } catch (err: any) {
         console.error(err.response)
+        return next(new Error("Authentication error"))
     }
 }

@@ -48,6 +48,9 @@ const startServer = async () => {
       socketAuthMiddleware(socket, next)
     })
 
+    let onlineUsers: any = {}
+    let typingUsers: any = {}
+
     // on socket connection
     io.on("connection", (socket) => {
 
@@ -57,11 +60,36 @@ const startServer = async () => {
       // when user on online
       socket.on("userOnline", (status) => {
         handleStatusUpdation(socket, status)
+        onlineUsers[socket.data.userData.email] = socket.id
+        io.emit("online-users", onlineUsers)
+      })
+
+      // when user typing
+      socket.on('typing', (data) => {
+        console.log(`${data.sender} is typing...`)
+        typingUsers[data.recipient] = data.sender
+
+        socket.to(data.recipientSocketId).emit("typing", data.sender)
+      })
+
+      // when user stop typing
+      socket.on('stopTyping', (data) => {
+        console.log(`${data.sender} is not typing.`)
+        delete typingUsers[data.recipient]
+        
+        socket.to(data.recipientSocketId).emit("stopTyping", data.sender)
       })
 
       // on user disconnection
       socket.on("disconnect", () => {
         handleStatusUpdation(socket, 'offline')
+        for (const userId in onlineUsers) {
+          if (onlineUsers[userId] === socket.id) {
+            delete onlineUsers[userId]
+            io.emit("online-users", onlineUsers)
+            break;
+          }
+        }
       })
 
       // on user sends a message
