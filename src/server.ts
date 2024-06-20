@@ -6,8 +6,6 @@ import { Server } from "socket.io";
 import routes from "./routes/chatRoutes";
 import { socketAuthMiddleware } from "./middlewares/authMiddleware";
 import { handleSocketConnection, handleStatusUpdation } from "./controllers/socketController";
-import { userServiceApi } from "./config/axiosConfig";
-import { createClient } from "redis"
 import { createAdapter } from "@socket.io/redis-adapter";
 import { createRedisClients } from "./config/redisConfig";
 
@@ -48,8 +46,8 @@ const startServer = async () => {
       socketAuthMiddleware(socket, next)
     })
 
-    let onlineUsers: any = {}
-    let typingUsers: any = {}
+    let onlineUsers: Record<string, string> = {}
+    let typingUsers: Record<string, string> = {}
 
     // on socket connection
     io.on("connection", (socket) => {
@@ -57,11 +55,43 @@ const startServer = async () => {
       // handling socket connection
       handleSocketConnection(socket)
 
+      const userChannel = `user:${socket.data.userData.email}`
+
+      // subscribe to their own channel
+      subClient.subscribe(userChannel, (data) => {
+        const { message, socketId, sender, recipient } = JSON.parse(data)
+
+        const dataTosend = {
+          message: message,
+          sender: sender,
+          recipient: recipient
+        }
+
+        console.log(`message from ${userChannel} channel: ${data}`)
+        io.to(socketId).emit('receive-message', dataTosend)
+      })
+
       // when user on online
       socket.on("userOnline", (status) => {
         handleStatusUpdation(socket, status)
         onlineUsers[socket.data.userData.email] = socket.id
         io.emit("online-users", onlineUsers)
+      })
+
+      // on user disconnection
+      socket.on("disconnect", () => {
+        handleStatusUpdation(socket, 'offline')
+
+        // unsubscribing on disconnection
+        subClient.unsubscribe(userChannel)
+
+        for (const userId in onlineUsers) {
+          if (onlineUsers[userId] === socket.id) {
+            delete onlineUsers[userId]
+            io.emit("online-users", onlineUsers)
+            break;
+          }
+        }
       })
 
       // when user typing
@@ -76,33 +106,24 @@ const startServer = async () => {
       socket.on('stopTyping', (data) => {
         console.log(`${data.sender} is not typing.`)
         delete typingUsers[data.recipient]
-        
+
         socket.to(data.recipientSocketId).emit("stopTyping", data.sender)
       })
 
-      // on user disconnection
-      socket.on("disconnect", () => {
-        handleStatusUpdation(socket, 'offline')
-        for (const userId in onlineUsers) {
-          if (onlineUsers[userId] === socket.id) {
-            delete onlineUsers[userId]
-            io.emit("online-users", onlineUsers)
-            break;
-          }
-        }
-      })
 
       // on user sends a message
       socket.on("send-message", ({ message, socketId, email }) => {
         const data = {
           message: message,
           recipient: email,
-          sender: socket.data.userData.email //getting userdata from the socket object
+          sender: socket.data.userData.email,//getting userdata from the socket object
+          socketId: socketId
         }
         console.log(message, socketId)
+        const recipientChannel = `user:${email}`
 
-        // sending message to recipient
-        socket.to(socketId).emit('receive-message', data)
+        // publishing message
+        pubClient.publish(recipientChannel, JSON.stringify(data))
       })
     })
   } catch (err) {
