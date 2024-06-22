@@ -54,7 +54,12 @@ const startServer = async () => {
 
       // handling socket connection
       handleSocketConnection(socket)
-
+      const updatedData = {
+        email: socket.data.userData.email,
+        socketId: socket.id
+      }
+      io.emit("updateSocket", updatedData)
+      
       const userChannel = `user:${socket.data.userData.email}`
 
       // subscribe to their own channel
