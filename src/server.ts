@@ -8,6 +8,8 @@ import { socketAuthMiddleware } from "./middlewares/authMiddleware";
 import { handleSocketConnection, handleStatusUpdation } from "./controllers/socketController";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { createRedisClients } from "./config/redisConfig";
+import { consumeMessage } from "./utils/kafka/chat-consumer";
+import { creatNewChat } from "./controllers/chatController";
 
 dotenv.config();
 const PORT = process.env.PORT || 8001;
@@ -24,6 +26,7 @@ const startServer = async () => {
     //  starting http server
     const httpServer: any = app.listen(PORT, async () => {
       connectDb()
+      await consumeMessage('new-chat', creatNewChat)
       console.log(`Connected to chat service on port : ${PORT}`)
     })
 
@@ -59,7 +62,7 @@ const startServer = async () => {
         socketId: socket.id
       }
       io.emit("updateSocket", updatedData)
-      
+
       const userChannel = `user:${socket.data.userData.email}`
 
       // subscribe to their own channel
