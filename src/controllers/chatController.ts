@@ -4,7 +4,8 @@ import { Chat } from "../models/chatModel";
 export const creatNewChat = async (message: any) => {
   try {
     const { userName, peerUserName, id, peerId } = message;
-    console.log(userName, peerUserName, id, peerId);
+    // console.log(userName, peerUserName, id, peerId);
+
     const chatName = `${userName} and ${peerUserName}`;
     const possibleChatName = `${peerUserName} and ${userName}`;
 
@@ -40,5 +41,20 @@ export const createNewMessage = async (
     }
   } catch (err) {
     console.error("Error in creating new message: ", err);
+  }
+};
+
+export const getChatId = async (name1: string, name2: string) => {
+  try {
+    const result: any = await Chat.findOne(
+      {
+        $or: [{ chatName: name1 }, { chatName: name2 }],
+      },
+      { chatName: 1, _id: 1 }
+    );
+    // console.log(`chatname: ${result.chatName}`);
+    return result._id;
+  } catch (err) {
+    console.error(`Error: ${err}`);
   }
 };
