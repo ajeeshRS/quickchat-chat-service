@@ -59,10 +59,10 @@ const startServer = async () => {
 
     // on socket connection
     io.on("connection", (socket) => {
-
       // handling socket connection
       handleSocketConnection(socket);
 
+      // handle socket id updation
       const updatedData = {
         email: socket.data.userData.email,
         socketId: socket.id,
@@ -126,7 +126,6 @@ const startServer = async () => {
 
       // on user sends a message
       socket.on("send-message", async ({ message, socketId, email }) => {
-
         const data = {
           message: message,
           recipient: email,
@@ -160,19 +159,25 @@ const startServer = async () => {
           username: string;
           email: string;
         }
-        
+
         const senderDetails: senderDetails[] = usersDetails.filter(
           (userData: any) => userData.email === socket.data.userData.email
         );
         // console.log(senderDetails);
 
-        const result = await Message.create({
+        const messageRes = await Message.create({
           chat: chatId,
           sender: senderDetails[0]._id,
           content: message,
         });
 
-        console.log(result);
+        const chat = await Chat.findOne({ _id: chatId });
+        if (!chat) {
+          return console.log("chat not found");
+        }
+        chat.messages.push(messageRes.id);
+
+        await chat.save();
       });
     });
   } catch (err) {
